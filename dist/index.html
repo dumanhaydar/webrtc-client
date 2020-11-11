@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<head>
+    <title>WebRTC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        video {
+            width: 320px;
+            height: 240px;
+        }
+        body {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Audio</h1>
+
+    <div id="selectRoom">
+        <button id="goBoth">Call</button>
+    </div>
+
+    <div id="conferenceRoom">
+        <video id="remoteAudio" autoplay></video>
+    </div>
+
+    <script src="client.min.js"></script>
+</body>

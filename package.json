@@ -1,0 +1,29 @@
+{
+  "name": "webrtc-client",
+  "version": "1.0.0",
+  "description": "A simple client webrtc",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "build": "browserify ./index.js -g unassertify -g envify -g uglifyify -p common-shakeify -p browser-pack-flat/plugin > ./dist/client.min.js"
+  },
+  "keywords": [],
+  "author": "Duman Haydar",
+  "dependencies": {
+    "browser-or-node": "^1.3.0",
+    "mic-stream": "^1.0.2",
+    "socket.io": "^2.0.4",
+    "speaker": "^0.5.2",
+    "wrtc": "^0.4.6"
+  },
+  "devDependencies": {
+    "browser-pack-flat": "^3.4.2",
+    "browserify": "^17.0.0",
+    "common-shakeify": "^0.6.2",
+    "envify": "^4.1.0",
+    "uglify-js": "^3.11.5",
+    "uglifyify": "^5.0.2",
+    "unassertify": "^2.1.1"
+  }
+}
