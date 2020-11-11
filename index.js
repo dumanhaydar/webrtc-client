@@ -1,34 +1,38 @@
 const io = require('socket.io-client');
 const { isBrowser, isNode } = require('browser-or-node');
+// browserify-ignore-start
+const { RTCPeerConnection, RTCSessionDescription, MediaStream, nonstandard } = require('wrtc');
+const { RTCAudioSink } = nonstandard
+const Speaker = require('speaker')
+const NodeWebRtcAudioSource = require('./lib/NodeWebRtcAudioSource');
+// browserify-ignore-end
+const roomNumber = 'webrtc';
+const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
+const socket = io();
+
 if (isBrowser) {
     var btnGoBoth = document.getElementById('goBoth');
     var remoteAudio = document.getElementById('remoteAudio');
 
     btnGoBoth.onclick = () => initiateCall();
 }
+// browserify-ignore-start
 if (isNode) {
-    const { RTCPeerConnection, RTCSessionDescription, MediaStream, nonstandard } = require('wrtc');
-    const { RTCAudioSink } = nonstandard
-    const Speaker = require('speaker')
-    const NodeWebRtcAudioSource = require('./lib/NodeWebRtcAudioSource');
     const rtcAudioSource = new NodeWebRtcAudioSource()
     const speaker = new Speaker({ channels: 1, bitDepth: 16, sampleRate: 48000, signed: true })
 
     initiateCall();
 }
+// browserify-ignore-end
 
-const roomNumber = 'webrtc';
-const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
-let localStream;
-let remoteStream;
-let rtcPeerConnection;
-let isCaller;
-let connected;
-
-const socket = io();
-
+var localStream;
+var remoteStream;
+var rtcPeerConnection;
+var isCaller;
+var connected;
 
 createPeerConnection();
+
 function initiateCall() {
     if(!connected) {
         if(isBrowser) {
@@ -56,7 +60,7 @@ socket.on('joined', function(room, data) {
 });
 
 socket.on('candidate', function(event) {
-    let candidate = event.candidate
+    var candidate = event.candidate
 
     rtcPeerConnection.addIceCandidate(candidate)
     .catch((e) => console.error(e));
@@ -64,13 +68,15 @@ socket.on('candidate', function(event) {
 
 
 socket.on('ready', function() {
+    // browserify-ignore-start
     if (isNode) {
         const mediaStream = new MediaStream()
         const track = rtcAudioSource.createTrack()
         mediaStream.addTrack(track);
         addLocalStream(mediaStream);
     }
-    let offerOptions = {
+    // browserify-ignore-end
+    var offerOptions = {
         offerToReceiveAudio: 1,
     };
     rtcPeerConnection.createOffer(offerOptions)
@@ -107,12 +113,14 @@ function onIceCandidate(event) {
 
 
 function onTrack(event) {
+    // browserify-ignore-start
     if(isNode) {
         remoteStream = new RTCAudioSink(event.track)
         remoteStream.ondata = data => {
             speaker.write(Buffer.from(data.samples.buffer))
         }
     }
+    // browserify-ignore-end
     if(isBrowser) {
         remoteAudio.srcObject = event.streams[0];
         remoteStream = event.streams[0];

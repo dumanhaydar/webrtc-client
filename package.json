@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "build": "browserify ./index.js -g unassertify -g envify -g uglifyify -p common-shakeify -p browser-pack-flat/plugin > ./dist/client.min.js"
+    "build": "browserify ./index.js > ./dist/client.min.js"
   },
   "keywords": [],
   "author": "Duman Haydar",
@@ -20,10 +20,15 @@
   "devDependencies": {
     "browser-pack-flat": "^3.4.2",
     "browserify": "^17.0.0",
+    "browserify-ignore-code": "^0.1.0",
     "common-shakeify": "^0.6.2",
     "envify": "^4.1.0",
     "uglify-js": "^3.11.5",
     "uglifyify": "^5.0.2",
     "unassertify": "^2.1.1"
+  },
+  "browserify": {
+    "transform": ["browserify-ignore-code"],
+    "plugins": ["unassertify","envify","uglifyify","common-shakeify","browser-pack-flat/plugin"]
   }
 }
