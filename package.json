@@ -4,7 +4,6 @@
   "description": "A simple client webrtc",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "build": "browserify ./index.js > ./dist/client.min.js"
   },
@@ -28,7 +27,16 @@
     "unassertify": "^2.1.1"
   },
   "browserify": {
-    "transform": ["browserify-ignore-code"],
-    "plugins": ["unassertify","envify","uglifyify","common-shakeify","browser-pack-flat/plugin"]
-  }
+    "transform": [
+      "browserify-ignore-code"
+    ],
+    "plugins": [
+      "unassertify",
+      "envify",
+      "uglifyify",
+      "common-shakeify",
+      "browser-pack-flat/plugin"
+    ]
+  },
+  "engines" : { "node" : "~10.23.0" }
 }
