@@ -1,5 +1,22 @@
 const io = require('socket.io-client');
 const { isBrowser, isNode } = require('browser-or-node');
+
+// browserify-ignore-start
+var gpio = require('rpi-gpio');
+
+gpio.setup(29, gpio.DIR_IN, gpio.EDGE_BOTH);
+gpio.setup(33, gpio.DIR_IN, gpio.EDGE_BOTH);
+gpio.setup(32, gpio.DIR_IN, gpio.EDGE_BOTH);
+gpio.setup(36, gpio.DIR_IN, gpio.EDGE_BOTH);
+gpio.setup(37, gpio.DIR_IN, gpio.EDGE_BOTH);
+
+gpio.on('change', function(channel, value) {
+    if(channel == 29 && value == true) {
+        console.log("Appel")
+    }
+});
+// browserify-ignore-end
+
 // browserify-ignore-start
 const { RTCPeerConnection, RTCSessionDescription, MediaStream, nonstandard } = require('wrtc');
 const { RTCAudioSink } = nonstandard
@@ -8,20 +25,22 @@ const NodeWebRtcAudioSource = require('./lib/NodeWebRtcAudioSource');
 // browserify-ignore-end
 const roomNumber = 'webrtc';
 const configuration = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]}
-const socket = io();
+const socket = io("https://rtc.syner.io");
 
 if (isBrowser) {
     var btnGoBoth = document.getElementById('goBoth');
     var remoteAudio = document.getElementById('remoteAudio');
 
-    btnGoBoth.onclick = () => initiateCall();
+    btnGoBoth.onclick = () => call();
 }
+
+var rtcAudioSource;
+var speaker;
 // browserify-ignore-start
 if (isNode) {
-    const rtcAudioSource = new NodeWebRtcAudioSource()
-    const speaker = new Speaker({ channels: 1, bitDepth: 16, sampleRate: 48000, signed: true })
+    rtcAudioSource = new NodeWebRtcAudioSource()
+    speaker = new Speaker({ channels: 1, bitDepth: 16, sampleRate: 48000, signed: true })
 
-    initiateCall();
 }
 // browserify-ignore-end
 
@@ -32,32 +51,44 @@ var isCaller;
 var connected;
 
 createPeerConnection();
+initiateCall();
 
 function initiateCall() {
-    if(!connected) {
-        if(isBrowser) {
-            const streamConstraints = {
-                video: false,
-                audio: true,
-            };
+    socket.emit('join', roomNumber);
+}
 
-            navigator.mediaDevices.getUserMedia(streamConstraints).then(function(stream) {
-                addLocalStream(stream);
-            }).catch(function(err) {
-                console.log('An error ocurred when accessing media devices');
-            });
-        }
-        socket.emit('join', roomNumber);
-    } else {
-        createPeerConnection()
+socket.on('joined', function(room) {
+    connected = true;
+});
+
+socket.on('call', function(room) {
+    isCaller = false;
+    socket.emit('ready', roomNumber);
+    // browserify-ignore-start
+    if(isNode) call();
+    // browserify-ignore-end
+});
+
+function prepareMaterial() {
+    if(isBrowser) {
+        const streamConstraints = {
+            video: false,
+            audio: true,
+        };
+
+        navigator.mediaDevices.getUserMedia(streamConstraints).then(function(stream) {
+            addLocalStream(stream);
+        }).catch(function(err) {
+            console.log('An error ocurred when accessing media devices');
+        });
     }
 }
 
-socket.on('joined', function(room, data) {
-    connected = true;
-    isCaller = data.isCaller
-    if(!isCaller) socket.emit('ready', roomNumber);
-});
+function call() {
+    isCaller = true;
+    prepareMaterial();
+    socket.emit('call', roomNumber);
+}
 
 socket.on('candidate', function(event) {
     var candidate = event.candidate
@@ -68,27 +99,30 @@ socket.on('candidate', function(event) {
 
 
 socket.on('ready', function() {
+    initiateCall();
     // browserify-ignore-start
     if (isNode) {
-        const mediaStream = new MediaStream()
-        const track = rtcAudioSource.createTrack()
-        mediaStream.addTrack(track);
-        addLocalStream(mediaStream);
+        if(!localStream) {
+            const mediaStream = new MediaStream()
+            const track = rtcAudioSource.createTrack()
+            mediaStream.addTrack(track);
+            addLocalStream(mediaStream);
+        }
     }
     // browserify-ignore-end
     var offerOptions = {
         offerToReceiveAudio: 1,
     };
     rtcPeerConnection.createOffer(offerOptions)
-        .then(desc => setLocalAndOffer(desc))
-        .catch(e => console.log(e));
+    .then(desc => setLocalAndOffer(desc))
+    .catch(e => console.log(e));
 });
 
 socket.on('offer', function(event) {
     rtcPeerConnection.setRemoteDescription(new RTCSessionDescription(event))
     rtcPeerConnection.createAnswer()
-        .then(desc => setLocalAndAnswer(desc))
-        .catch(e => console.log(e));
+    .then(desc => setLocalAndAnswer(desc))
+    .catch(e => console.log(e));
 });
 
 socket.on('answer', function(event) {
@@ -96,7 +130,11 @@ socket.on('answer', function(event) {
 });
 
 socket.on('leave', function(event) {
-    createPeerConnection();
+    if(rtcPeerConnection) {
+        rtcPeerConnection.close();
+        rtcPeerConnection = null;
+        createPeerConnection();
+    }
     console.log("bye")
 });
 
@@ -147,8 +185,7 @@ function setLocalAndAnswer(sessionDescription) {
 
 function addLocalStream(stream) {
     localStream = stream;
-    localStream.getTracks()
-        .forEach(track => rtcPeerConnection.addTrack(track, localStream));
+    if(rtcPeerConnection) localStream.getTracks().forEach(track => rtcPeerConnection.addTrack(track, localStream));
 }
 
 function onChange(event) {
@@ -160,24 +197,19 @@ function onNegotiationNeeded(event) {
     console.log('onNegotiationNeeded: ', true)
 }
 function onIceConnectionStateChange(event) {
-    console.log('onIceConnectionStateChange: ', rtcPeerConnection.iceConnectionState)
+    if(rtcPeerConnection) console.log('onIceConnectionStateChange: ', rtcPeerConnection.iceConnectionState)
 
 }
 function onConnectionStateChange(event) {
-    console.log('onConnectionStateChange: ', rtcPeerConnection.connectionState)
+    if(rtcPeerConnection) console.log('onConnectionStateChange: ', rtcPeerConnection.connectionState)
 
 }
 function onSignalingStateChange(event) {
-    console.log('onSignalingStateChange: ', rtcPeerConnection.signalingState)
+    if(rtcPeerConnection) console.log('onSignalingStateChange: ', rtcPeerConnection.signalingState)
 
 }
 
 function createPeerConnection() {
-    if(rtcPeerConnection){
-        rtcPeerConnection.close();
-        rtcPeerConnection = null;
-        localStream = null;
-    }
     rtcPeerConnection = new RTCPeerConnection(configuration);
     rtcPeerConnection.onicecandidate = onIceCandidate;
     rtcPeerConnection.ontrack = onTrack;
